@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install express mongoose cors dotenv)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
