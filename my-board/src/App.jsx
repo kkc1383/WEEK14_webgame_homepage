@@ -30,11 +30,14 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = (showMessage = true) => {
     localStorage.removeItem('token');
     localStorage.removeItem('userid');
     setUser(null);
     setCurrentView('board');
+    if (showMessage) {
+      alert('로그아웃 되었습니다!');
+    }
   };
 
   if (loading) {

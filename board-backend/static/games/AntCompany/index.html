@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Unity WebGL Player | AntCompany</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        text-align: center;
+        overflow-x: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" width=270 height=570 style="width: 270px; height: 570px; background: #231F20"></canvas>
+    <script src="Build/AntCompany.loader.js"></script>
+    <script>
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        // Mobile device style: fill the whole browser client area with the game canvas:
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+      }
+
+      createUnityInstance(document.querySelector("#unity-canvas"), {
+        dataUrl: "Build/AntCompany.data",
+        frameworkUrl: "Build/AntCompany.framework.js",
+        codeUrl: "Build/AntCompany.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Rookiss",
+        productName: "AntCompany",
+        productVersion: "1.10",
+        // matchWebGLToCanvasSize: false, // Uncomment this to separately control WebGL canvas render size and DOM element size.
+        // devicePixelRatio: 1, // Uncomment this to override low DPI rendering on high DPI displays.
+      }, (progress) => {
+        console.log("Loading progress: " + (progress * 100).toFixed(2) + "%");
+      }).then((unityInstance) => {
+        console.log("Unity instance loaded successfully!");
+      }).catch((message) => {
+        console.error("Unity loading error:", message);
+        alert("Error loading Unity game: " + message);
+      });
+    </script>
+  </body>
+</html>

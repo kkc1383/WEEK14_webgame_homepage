@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 from typing import Optional
@@ -13,8 +14,38 @@ import string
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import mimetypes
+
+# Unity WebGL을 위한 MIME 타입 설정
+mimetypes.add_type('application/wasm', '.wasm')
+mimetypes.add_type('application/octet-stream', '.data')
+mimetypes.add_type('application/javascript', '.framework.js')
+mimetypes.add_type('application/javascript', '.loader.js')
 
 app = FastAPI()
+
+# Custom StaticFiles class with proper MIME types
+class UnityStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+
+        # Unity WebGL 파일들에 대한 특별 처리
+        if path.endswith('.wasm'):
+            response.headers['Content-Type'] = 'application/wasm'
+        elif path.endswith('.data'):
+            response.headers['Content-Type'] = 'application/octet-stream'
+        elif path.endswith('.framework.js') or path.endswith('.loader.js'):
+            response.headers['Content-Type'] = 'application/javascript'
+
+        # CORS 헤더 추가
+        response.headers['Cross-Origin-Embedder-Policy'] = 'require-corp'
+        response.headers['Cross-Origin-Opener-Policy'] = 'same-origin'
+
+        return response
+
+# Static 파일 서빙 설정
+app.mount("/images", StaticFiles(directory="static/images"), name="images")
+app.mount("/games", UnityStaticFiles(directory="static/games", html=True), name="games")
 
 # JWT 설정
 SECRET_KEY = "your-secret-key-here-change-in-production"
@@ -44,6 +75,7 @@ client = AsyncIOMotorClient("mongodb://localhost:27017")
 db = client.board_database
 posts_collection = db.posts
 users_collection = db.users
+comments_collection = db.comments
 
 # Pydantic 모델
 class User(BaseModel):
@@ -76,15 +108,25 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+class UpdateProfileImageRequest(BaseModel):
+    profile_image: str
+
 class Post(BaseModel):
     title: str
     author: str
     content: str
+    category: str = "Unity 게임"  # "Unity 게임", "Three.js 게임", "시뮬레이터"
+    thumbnail: Optional[str] = None
+    webgl_path: Optional[str] = None  # WebGL 게임 경로 (예: /games/game1/index.html)
     date: Optional[str] = None
     views: int = 0
 
 class PostUpdate(BaseModel):
     title: str
+    content: str
+
+class Comment(BaseModel):
+    author: str
     content: str
 
 # 유틸리티 함수
@@ -147,14 +189,34 @@ def send_email(to_email: str, subject: str, body: str):
         return False
 
 # ObjectId를 문자열로 변환하는 헬퍼 함수
-def post_helper(post) -> dict:
+async def post_helper(post) -> dict:
+    # 댓글 수 계산
+    comment_count = await comments_collection.count_documents({"post_id": str(post["_id"])})
+
+    # 카테고리별 기본 썸네일 설정
+    category = post.get("category", "Unity 게임")
+    default_thumbnail = "/images/three.png" if category == "Three.js 게임" else "/images/unity.jpg"
+
     return {
         "id": str(post["_id"]),
         "title": post["title"],
         "author": post["author"],
         "content": post["content"],
+        "category": category,
+        "thumbnail": post.get("thumbnail", default_thumbnail),
+        "webgl_path": post.get("webgl_path", ""),
         "date": post["date"],
-        "views": post["views"]
+        "views": post["views"],
+        "comment_count": comment_count
+    }
+
+def comment_helper(comment) -> dict:
+    return {
+        "id": str(comment["_id"]),
+        "post_id": comment["post_id"],
+        "author": comment["author"],
+        "content": comment["content"],
+        "date": comment["date"]
     }
 
 @app.get("/")
@@ -184,7 +246,8 @@ async def register(user: User):
         "password": hashed_password,
         "gender": user.gender,
         "birthdate": user.birthdate,
-        "created_at": datetime.now()
+        "created_at": datetime.now(),
+        "profile_image": "/images/profile.jpg"
     }
 
     await users_collection.insert_one(user_dict)
@@ -233,7 +296,8 @@ async def get_me(userid: str = Depends(get_current_user)):
         "email": user["email"],
         "gender": user.get("gender", ""),
         "birthdate": user.get("birthdate", ""),
-        "created_at": created_at
+        "created_at": created_at,
+        "profile_image": user.get("profile_image", "/images/profile.jpg")
     }
 
 # 아이디 찾기
@@ -358,7 +422,7 @@ async def change_password(request: ChangePasswordRequest, userid: str = Depends(
 async def get_posts():
     posts = []
     async for post in posts_collection.find().sort("_id", -1):
-        posts.append(post_helper(post))
+        posts.append(await post_helper(post))
     return posts
 
 # 게시글 상세 조회 (조회수 증가)
@@ -372,7 +436,7 @@ async def get_post(post_id: str):
             {"$inc": {"views": 1}}
         )
         post["views"] += 1
-        return post_helper(post)
+        return await post_helper(post)
     raise HTTPException(status_code=404, detail="Post not found")
 
 # 게시글 작성
@@ -383,7 +447,7 @@ async def create_post(post: Post):
     post_dict["views"] = 0
     result = await posts_collection.insert_one(post_dict)
     new_post = await posts_collection.find_one({"_id": result.inserted_id})
-    return post_helper(new_post)
+    return await post_helper(new_post)
 
 # 게시글 수정
 @app.put("/api/posts/{post_id}")
@@ -394,7 +458,7 @@ async def update_post(post_id: str, post: PostUpdate):
     )
     updated_post = await posts_collection.find_one({"_id": ObjectId(post_id)})
     if updated_post:
-        return post_helper(updated_post)
+        return await post_helper(updated_post)
     raise HTTPException(status_code=404, detail="Post not found")
 
 # 게시글 삭제
@@ -402,8 +466,44 @@ async def update_post(post_id: str, post: PostUpdate):
 async def delete_post(post_id: str):
     result = await posts_collection.delete_one({"_id": ObjectId(post_id)})
     if result.deleted_count:
+        # 해당 게시글의 댓글도 모두 삭제
+        await comments_collection.delete_many({"post_id": post_id})
         return {"message": "Post deleted successfully"}
     raise HTTPException(status_code=404, detail="Post not found")
+
+# 댓글 목록 조회
+@app.get("/api/posts/{post_id}/comments")
+async def get_comments(post_id: str):
+    comments = []
+    async for comment in comments_collection.find({"post_id": post_id}).sort("_id", 1):
+        comments.append(comment_helper(comment))
+    return comments
+
+# 댓글 작성
+@app.post("/api/posts/{post_id}/comments")
+async def create_comment(post_id: str, comment: Comment):
+    # 게시글 존재 확인
+    post = await posts_collection.find_one({"_id": ObjectId(post_id)})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    comment_dict = {
+        "post_id": post_id,
+        "author": comment.author,
+        "content": comment.content,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
+    result = await comments_collection.insert_one(comment_dict)
+    new_comment = await comments_collection.find_one({"_id": result.inserted_id})
+    return comment_helper(new_comment)
+
+# 댓글 삭제
+@app.delete("/api/comments/{comment_id}")
+async def delete_comment(comment_id: str):
+    result = await comments_collection.delete_one({"_id": ObjectId(comment_id)})
+    if result.deleted_count:
+        return {"message": "Comment deleted successfully"}
+    raise HTTPException(status_code=404, detail="Comment not found")
 
 if __name__ == "__main__":
     import uvicorn

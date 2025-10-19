@@ -13,6 +13,9 @@ export default function MyPage({ user, onBack }) {
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const passwordSectionRef = useRef(null);
+  const [profileImageUrl, setProfileImageUrl] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
 
   useEffect(() => {
     fetchUserInfo();
@@ -20,9 +23,7 @@ export default function MyPage({ user, onBack }) {
     // 임시 비밀번호로 로그인한 경우 비밀번호 변경 섹션으로 스크롤
     const isTempPassword = localStorage.getItem('is_temporary_password');
     if (isTempPassword === 'true') {
-      setTimeout(() => {
-        passwordSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
+      passwordSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, []);
 
@@ -99,6 +100,48 @@ export default function MyPage({ user, onBack }) {
     }
   };
 
+  const handleProfileImageUpdate = async (e) => {
+    e.preventDefault();
+    setProfileError('');
+    setProfileSuccess('');
+
+    if (!profileImageUrl.trim()) {
+      setProfileError('프로필 이미지 URL을 입력하세요.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/auth/update-profile-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          profile_image: profileImageUrl
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setProfileSuccess('프로필 이미지가 성공적으로 변경되었습니다.');
+        setProfileImageUrl('');
+        // 사용자 정보 다시 불러오기
+        fetchUserInfo();
+      } else {
+        setProfileError(data.detail || '프로필 이미지 변경에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Profile image update error:', error);
+      setProfileError('서버와의 연결에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -132,6 +175,57 @@ export default function MyPage({ user, onBack }) {
             >
               돌아가기
             </button>
+          </div>
+        </div>
+
+        {/* 프로필 이미지 */}
+        <div className="bg-white rounded-lg shadow-md p-8 mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3">
+            프로필 이미지
+          </h2>
+          <div className="flex flex-col items-center">
+            <img
+              src={userInfo.profile_image || '/images/profile.jpg'}
+              alt="프로필"
+              className="w-32 h-32 rounded-full object-cover mb-4 border-4 border-gray-200"
+              onError={(e) => {
+                e.target.src = '/images/profile.jpg';
+              }}
+            />
+            <form onSubmit={handleProfileImageUpdate} className="w-full max-w-md">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  새 프로필 이미지 URL
+                </label>
+                <input
+                  type="url"
+                  value={profileImageUrl}
+                  onChange={(e) => setProfileImageUrl(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="이미지 URL을 입력하세요"
+                />
+              </div>
+
+              {profileError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+                  {profileError}
+                </div>
+              )}
+
+              {profileSuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
+                  {profileSuccess}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600 font-medium text-base disabled:bg-gray-400"
+              >
+                {loading ? '처리 중...' : '프로필 이미지 변경'}
+              </button>
+            </form>
           </div>
         </div>
 
