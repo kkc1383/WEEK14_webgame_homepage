@@ -48,3 +48,16 @@ coverage/
 # Misc
 .cache/
 .parcel-cache/
+
+# Unity WebGL Game Resources (large binary files)
+board-backend/static/games/*/Build/
+board-backend/static/games/*/StreamingAssets/
+board-backend/static/games/*/TemplateData/
+board-backend/static/images/
+my-board/public/images/
+my-board/public/*.png
+my-board/public/*.jpg
+static/
+
+# Keep index.html files for games
+!board-backend/static/games/*/index.html
