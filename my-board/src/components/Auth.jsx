@@ -151,7 +151,7 @@ export default function Auth({ onLogin }) {
   const getTitle = () => {
     if (isFindId) return '아이디 찾기';
     if (isResetPassword) return '비밀번호 찾기';
-    return isLogin ? '로그인' : '회원가입';
+    return isLogin ? '나만의 게시판' : '회원가입';
   };
 
   const resetForm = () => {
@@ -161,7 +161,7 @@ export default function Auth({ onLogin }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
-      <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
+      <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full border border-gray-100">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">
           {getTitle()}
         </h2>
@@ -179,7 +179,7 @@ export default function Auth({ onLogin }) {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                   placeholder="이메일을 입력하세요"
                 />
               </div>
@@ -192,7 +192,7 @@ export default function Auth({ onLogin }) {
                   required
                   value={formData.birthdate}
                   onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                 />
               </div>
             </>
@@ -210,7 +210,7 @@ export default function Auth({ onLogin }) {
                   required
                   value={formData.userid}
                   onChange={(e) => setFormData({ ...formData, userid: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                   placeholder="아이디를 입력하세요"
                 />
               </div>
@@ -223,7 +223,7 @@ export default function Auth({ onLogin }) {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                   placeholder="이메일을 입력하세요"
                 />
               </div>
@@ -236,7 +236,7 @@ export default function Auth({ onLogin }) {
                   required
                   value={formData.birthdate}
                   onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                 />
               </div>
             </>
@@ -254,7 +254,7 @@ export default function Auth({ onLogin }) {
                   required
                   value={formData.userid}
                   onChange={(e) => setFormData({ ...formData, userid: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                   placeholder="아이디를 입력하세요"
                 />
               </div>
@@ -269,7 +269,7 @@ export default function Auth({ onLogin }) {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                     placeholder="이메일을 입력하세요"
                   />
                 </div>
@@ -284,7 +284,7 @@ export default function Auth({ onLogin }) {
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                   placeholder="비밀번호를 입력하세요"
                 />
               </div>
@@ -300,7 +300,7 @@ export default function Auth({ onLogin }) {
                       required
                       value={formData.confirmPassword}
                       onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                       placeholder="비밀번호를 다시 입력하세요"
                     />
                   </div>
@@ -342,7 +342,7 @@ export default function Auth({ onLogin }) {
                       required
                       value={formData.birthdate}
                       onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
                     />
                   </div>
                 </>
@@ -359,7 +359,7 @@ export default function Auth({ onLogin }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-500 text-white py-3 rounded-md hover:bg-blue-600 font-medium text-base disabled:bg-gray-400"
+            className="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-lg hover:from-blue-600 hover:to-blue-700 font-semibold text-base disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-200 hover:shadow-lg active:scale-[0.98]"
           >
             {loading ? '처리 중...' : (isFindId ? '아이디 찾기' : isResetPassword ? '비밀번호 초기화' : (isLogin ? '로그인' : '회원가입'))}
           </button>
@@ -374,7 +374,7 @@ export default function Auth({ onLogin }) {
                   setIsFindId(true);
                   resetForm();
                 }}
-                className="text-blue-500 hover:text-blue-600"
+                className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
               >
                 아이디 찾기
               </button>
@@ -384,7 +384,7 @@ export default function Auth({ onLogin }) {
                   setIsResetPassword(true);
                   resetForm();
                 }}
-                className="text-blue-500 hover:text-blue-600"
+                className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
               >
                 비밀번호 찾기
               </button>
@@ -399,7 +399,7 @@ export default function Auth({ onLogin }) {
                   setIsResetPassword(false);
                   resetForm();
                 }}
-                className="text-blue-500 hover:text-blue-600 text-sm"
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors duration-200"
               >
                 로그인으로 돌아가기
               </button>
@@ -409,7 +409,7 @@ export default function Auth({ onLogin }) {
                   setIsLogin(!isLogin);
                   resetForm();
                 }}
-                className="text-blue-500 hover:text-blue-600 text-sm"
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors duration-200"
               >
                 {isLogin ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
               </button>

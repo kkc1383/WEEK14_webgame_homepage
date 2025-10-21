@@ -76,6 +76,7 @@ db = client.board_database
 posts_collection = db.posts
 users_collection = db.users
 comments_collection = db.comments
+scores_collection = db.scores
 
 # Pydantic 모델
 class User(BaseModel):
@@ -129,6 +130,11 @@ class Comment(BaseModel):
     author: str
     content: str
 
+class GameScore(BaseModel):
+    game_name: str
+    score: int
+    username: str
+
 # 유틸리티 함수
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     # 비밀번호 검증
@@ -159,6 +165,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.JWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
+def is_admin(credentials: HTTPAuthorizationCredentials = Depends(security)) -> bool:
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload.get("is_admin", False)
+    except:
+        return False
+
 
 def generate_random_password(length: int = 8) -> str:
     # 랜덤 비밀번호 생성 (영문 대소문자, 숫자 조합)
@@ -257,6 +271,18 @@ async def register(user: User):
 # 로그인
 @app.post("/api/auth/login", response_model=Token)
 async def login(user: UserLogin):
+    # 관리자 계정 처리
+    if user.userid == "admin" and user.password == "admin":
+        # JWT 토큰 생성 (관리자 플래그 포함)
+        access_token = create_access_token(data={"sub": "admin", "is_admin": True})
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "userid": "admin",
+            "is_temporary_password": False
+        }
+
     # 사용자 찾기
     db_user = await users_collection.find_one({"userid": user.userid})
     if not db_user:
@@ -281,7 +307,22 @@ async def login(user: UserLogin):
 
 # 현재 사용자 정보 조회
 @app.get("/api/auth/me")
-async def get_me(userid: str = Depends(get_current_user)):
+async def get_me(
+    userid: str = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    # 관리자 계정 처리
+    if userid == "admin" and is_admin(credentials):
+        return {
+            "userid": "admin",
+            "email": "admin@system.com",
+            "gender": "",
+            "birthdate": "",
+            "created_at": "",
+            "profile_image": "/images/profile.jpg",
+            "is_admin": True
+        }
+
     user = await users_collection.find_one({"userid": userid})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -297,8 +338,16 @@ async def get_me(userid: str = Depends(get_current_user)):
         "gender": user.get("gender", ""),
         "birthdate": user.get("birthdate", ""),
         "created_at": created_at,
-        "profile_image": user.get("profile_image", "/images/profile.jpg")
+        "profile_image": user.get("profile_image", "/images/profile.jpg"),
+        "is_admin": False
     }
+
+# 관리자 권한 확인
+@app.get("/api/auth/check-admin")
+async def check_admin(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    admin = is_admin(credentials)
+    return {"is_admin": admin}
+
 
 # 아이디 찾기
 @app.post("/api/auth/find-userid")
@@ -451,7 +500,22 @@ async def create_post(post: Post):
 
 # 게시글 수정
 @app.put("/api/posts/{post_id}")
-async def update_post(post_id: str, post: PostUpdate):
+async def update_post(
+    post_id: str,
+    post: PostUpdate,
+    userid: str = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    # 게시글 찾기
+    existing_post = await posts_collection.find_one({"_id": ObjectId(post_id)})
+    if not existing_post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # 권한 확인 (작성자 본인 또는 관리자)
+    admin = is_admin(credentials)
+    if existing_post["author"] != userid and not admin:
+        raise HTTPException(status_code=403, detail="수정 권한이 없습니다.")
+
     await posts_collection.update_one(
         {"_id": ObjectId(post_id)},
         {"$set": {"title": post.title, "content": post.content}}
@@ -463,7 +527,21 @@ async def update_post(post_id: str, post: PostUpdate):
 
 # 게시글 삭제
 @app.delete("/api/posts/{post_id}")
-async def delete_post(post_id: str):
+async def delete_post(
+    post_id: str,
+    userid: str = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    # 게시글 찾기
+    existing_post = await posts_collection.find_one({"_id": ObjectId(post_id)})
+    if not existing_post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # 권한 확인 (작성자 본인 또는 관리자)
+    admin = is_admin(credentials)
+    if existing_post["author"] != userid and not admin:
+        raise HTTPException(status_code=403, detail="삭제 권한이 없습니다.")
+
     result = await posts_collection.delete_one({"_id": ObjectId(post_id)})
     if result.deleted_count:
         # 해당 게시글의 댓글도 모두 삭제
@@ -499,11 +577,71 @@ async def create_comment(post_id: str, comment: Comment):
 
 # 댓글 삭제
 @app.delete("/api/comments/{comment_id}")
-async def delete_comment(comment_id: str):
+async def delete_comment(
+    comment_id: str,
+    userid: str = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    # 댓글 찾기
+    existing_comment = await comments_collection.find_one({"_id": ObjectId(comment_id)})
+    if not existing_comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    # 권한 확인 (작성자 본인 또는 관리자)
+    admin = is_admin(credentials)
+    if existing_comment["author"] != userid and not admin:
+        raise HTTPException(status_code=403, detail="삭제 권한이 없습니다.")
+
     result = await comments_collection.delete_one({"_id": ObjectId(comment_id)})
     if result.deleted_count:
         return {"message": "Comment deleted successfully"}
     raise HTTPException(status_code=404, detail="Comment not found")
+
+# 게임 스코어 저장
+@app.post("/api/scores")
+async def save_score(score_data: GameScore, userid: str = Depends(get_current_user)):
+    # 사용자 인증 확인 (토큰의 userid와 요청의 username이 일치하는지)
+    if score_data.username != userid:
+        raise HTTPException(status_code=403, detail="본인의 점수만 저장할 수 있습니다.")
+
+    score_dict = {
+        "game_name": score_data.game_name,
+        "score": score_data.score,
+        "username": score_data.username,
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+    result = await scores_collection.insert_one(score_dict)
+
+    if result.inserted_id:
+        return {"message": "Score saved successfully", "score_id": str(result.inserted_id)}
+    raise HTTPException(status_code=500, detail="Failed to save score")
+
+# 게임별 스코어보드 조회 (상위 10개)
+@app.get("/api/scores/{game_name}")
+async def get_scoreboard(game_name: str, limit: int = 10):
+    scores = []
+    async for score in scores_collection.find({"game_name": game_name}).sort("score", -1).limit(limit):
+        scores.append({
+            "id": str(score["_id"]),
+            "username": score["username"],
+            "score": score["score"],
+            "date": score["date"]
+        })
+    return scores
+
+# 사용자별 게임 스코어 조회
+@app.get("/api/scores/user/{username}")
+async def get_user_scores(username: str):
+    scores = []
+    async for score in scores_collection.find({"username": username}).sort("date", -1):
+        scores.append({
+            "id": str(score["_id"]),
+            "game_name": score["game_name"],
+            "score": score["score"],
+            "date": score["date"]
+        })
+    return scores
 
 if __name__ == "__main__":
     import uvicorn

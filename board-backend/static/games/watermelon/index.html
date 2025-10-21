@@ -3,7 +3,26 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | watermelon_game</title>
+    <title>Unity Web Player | watermelon</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+      }
+      #unity-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      /* Unity 로고 및 footer 숨기기 */
+      #unity-footer {
+        display: none !important;
+      }
+      #unity-webgl-logo {
+        display: none !important;
+      }
+    </style>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
   </head>
@@ -20,7 +39,7 @@
       <div id="unity-footer">
         <div id="unity-logo-title-footer"></div>
         <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">watermelon_game</div>
+        <div id="unity-build-title">watermelon</div>
       </div>
     </div>
     <script>
@@ -52,15 +71,15 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/watermelon.loader.js";
+      var loaderUrl = buildUrl + "/sec7.loader.js";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/watermelon.data",
-        frameworkUrl: buildUrl + "/watermelon.framework.js",
-        codeUrl: buildUrl + "/watermelon.wasm",
+        dataUrl: buildUrl + "/sec7.data",
+        frameworkUrl: buildUrl + "/sec7.framework.js",
+        codeUrl: buildUrl + "/sec7.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
-        productName: "watermelon_game",
+        productName: "watermelon",
         productVersion: "1.0",
         showBanner: unityShowBanner,
         // errorHandler: function(err, url, line) {
@@ -104,8 +123,8 @@
 
       } else {
         // Desktop style: Render the game canvas in a window that can be maximized to fullscreen:
-        canvas.style.width = "960px";
-        canvas.style.height = "600px";
+        canvas.style.width = "1940px";
+        canvas.style.height = "1020px";
       }
 
       document.querySelector("#unity-loading-bar").style.display = "block";

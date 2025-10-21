@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 const API_URL = 'http://localhost:8000/api';
 
-export default function Board({ user, onLogout, onMyPage }) {
+export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
   const [posts, setPosts] = useState([]);
   const [view, setView] = useState('list');
   const [selectedPost, setSelectedPost] = useState(null);
@@ -12,14 +12,42 @@ export default function Board({ user, onLogout, onMyPage }) {
   const [comments, setComments] = useState([]);
   const [commentContent, setCommentContent] = useState('');
   const [profileImage, setProfileImage] = useState('/images/profile.jpg');
+  const [selectedCategory, setSelectedCategory] = useState('전체');
 
   const categories = ['Unity 게임', 'Three.js 게임', '시뮬레이터'];
+  const filterCategories = ['전체', 'Unity 게임', 'Three.js 게임', '시뮬레이터'];
+
+  // 게임별 해상도 설정 (게임 경로 기반)
+  const getGameResolution = (webglPath) => {
+    if (!webglPath) return { width: 270, height: 630, scale: 1 };
+
+    const gameName = webglPath.toLowerCase();
+
+    // 게임별 맞춤 해상도 설정
+    const resolutions = {
+      'alicepang': { width: 270, height: 570, scale: 1 },
+      'antcompany': { width: 270, height: 630, scale: 1 },
+      'watermelon': { width: 1940, height: 1080, scale: 0.5 }, // 원본 해상도 유지하고 50% 스케일
+      // 새 게임 추가 시 여기에 추가
+    };
+
+    // 경로에서 게임 이름 추출하여 해상도 반환
+    for (const [game, resolution] of Object.entries(resolutions)) {
+      if (gameName.includes(game)) {
+        return resolution;
+      }
+    }
+
+    // 기본값 (세로형 모바일 게임)
+    return { width: 270, height: 630, scale: 1 };
+  };
 
   // 게시글 목록 및 사용자 정보 불러오기
   useEffect(() => {
     fetchPosts();
     fetchUserProfile();
   }, []);
+
 
   const fetchUserProfile = async () => {
     try {
@@ -31,7 +59,12 @@ export default function Board({ user, onLogout, onMyPage }) {
       });
       if (response.ok) {
         const data = await response.json();
-        setProfileImage(data.profile_image || '/images/profile.jpg');
+        // 프로필 이미지 URL 처리: 상대 경로면 백엔드 서버 URL 추가
+        let imageUrl = data.profile_image || '/images/profile.jpg';
+        if (imageUrl.startsWith('/')) {
+          imageUrl = `http://localhost:8000${imageUrl}`;
+        }
+        setProfileImage(imageUrl);
       } else if (response.status === 401) {
         // 토큰이 유효하지 않으면 로그아웃 처리
         alert('세션이 만료되었습니다. 로그인을 다시 해주세요.');
@@ -114,8 +147,12 @@ export default function Board({ user, onLogout, onMyPage }) {
   const handleCommentDelete = async (commentId) => {
     if (window.confirm('댓글을 삭제하시겠습니까?')) {
       try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_URL}/comments/${commentId}`, {
           method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
 
         if (response.ok) {
@@ -170,10 +207,12 @@ export default function Board({ user, onLogout, onMyPage }) {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/posts/${selectedPost.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           title: formData.title,
@@ -198,8 +237,12 @@ export default function Board({ user, onLogout, onMyPage }) {
   const handleDelete = async (id) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_URL}/posts/${id}`, {
           method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
 
         if (response.ok) {
@@ -326,26 +369,46 @@ export default function Board({ user, onLogout, onMyPage }) {
           </div>
 
           {/* WebGL 게임 - 위로 이동 */}
-          {selectedPost.webgl_path && (
-            <div className="px-8 py-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-4">게임 플레이</h3>
-              <div className="flex justify-center bg-gray-900 py-6 rounded-lg">
-                <iframe
-                  src={`http://localhost:8000${selectedPost.webgl_path}`}
-                  width="270"
-                  height="570"
-                  title="WebGL Game"
-                  allowFullScreen
-                  style={{ border: 'none', maxWidth: '100%' }}
-                />
+          {selectedPost.webgl_path && (() => {
+            const resolution = getGameResolution(selectedPost.webgl_path);
+            const displayWidth = resolution.width * resolution.scale;
+            const displayHeight = resolution.height * resolution.scale;
+            return (
+              <div className="px-8 py-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-4">게임 플레이</h3>
+                <div className="flex justify-center">
+                  <div className="bg-gray-900 rounded-lg inline-block" style={{ padding: '10px' }}>
+                    <div style={{
+                      width: `${displayWidth}px`,
+                      height: `${displayHeight}px`,
+                      overflow: 'hidden'
+                    }}>
+                      <iframe
+                        src={`http://localhost:8000${selectedPost.webgl_path}`}
+                        width={resolution.width}
+                        height={resolution.height}
+                        title="WebGL Game"
+                        allowFullScreen
+                        style={{
+                          border: 'none',
+                          display: 'block',
+                          transform: `scale(${resolution.scale})`,
+                          transformOrigin: 'top left',
+                          width: `${resolution.width}px`,
+                          height: `${resolution.height}px`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-gray-500 text-center">
+                  해상도: {resolution.width}x{resolution.height} (표시 크기: {displayWidth}x{displayHeight})
+                </p>
               </div>
-              <p className="mt-2 text-sm text-gray-500 text-center">
-                권장 해상도: 1080x2280 (25% 스케일로 표시)
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
-          {/* 게시글 본문 - 아래로 이동 */}
+          {/* 게시글 본문 */}
           <div className="px-8 py-10 border-t border-gray-200">
             <h3 className="text-xl font-bold text-gray-800 mb-4">게임 설명</h3>
             <p className="text-gray-700 whitespace-pre-wrap text-base leading-relaxed">{selectedPost.content}</p>
@@ -386,7 +449,7 @@ export default function Board({ user, onLogout, onMyPage }) {
                         <span className="font-semibold text-gray-800">{comment.author}</span>
                         <span className="text-sm text-gray-500">{comment.date}</span>
                       </div>
-                      {comment.author === user && (
+                      {(comment.author === user || isAdmin) && (
                         <button
                           onClick={() => handleCommentDelete(comment.id)}
                           className="text-sm text-red-500 hover:text-red-700"
@@ -409,7 +472,7 @@ export default function Board({ user, onLogout, onMyPage }) {
             >
               목록
             </button>
-            {selectedPost.author === user && (
+            {(selectedPost.author === user || isAdmin) && (
               <>
                 <button
                   onClick={startEdit}
@@ -432,35 +495,62 @@ export default function Board({ user, onLogout, onMyPage }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-8">
-      <div className="bg-white rounded-lg shadow">
-        <div className="border-b border-gray-200 px-8 py-6 flex justify-end items-center">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <img
-                src={profileImage}
-                alt="프로필"
-                className="w-10 h-10 rounded-full object-cover"
-                onError={(e) => {
-                  e.target.src = '/images/profile.jpg';
-                }}
-              />
-              <span className="text-gray-700">
-                환영합니다, <span className="font-semibold">{user}</span>님
-              </span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8 px-8">
+      <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20">
+        <div className="border-b border-gray-200 px-8 relative bg-gradient-to-r from-white via-gray-50 to-white">
+          <div className="flex justify-between items-end py-6">
+            {/* 왼쪽: 카테고리 탭 */}
+            <div className="flex gap-8 items-center pb-2">
+              {filterCategories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`text-lg font-bold tracking-wide transition-all duration-300 relative ${
+                    selectedCategory === category
+                      ? 'text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600'
+                      : 'text-gray-400 hover:text-gray-700'
+                  }`}
+                  style={{ padding: 0, background: selectedCategory === category ? 'linear-gradient(to right, rgb(37, 99, 235), rgb(79, 70, 229))' : 'none', WebkitBackgroundClip: selectedCategory === category ? 'text' : 'unset', WebkitTextFillColor: selectedCategory === category ? 'transparent' : 'unset', border: 'none' }}
+                >
+                  {category}
+                  {selectedCategory === category && (
+                    <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg" style={{ bottom: '-8px' }}></div>
+                  )}
+                </button>
+              ))}
             </div>
-            <button
-              onClick={onMyPage}
-              className="px-6 py-3 bg-green-500 text-white rounded hover:bg-green-600 text-base font-medium"
-            >
-              마이페이지
-            </button>
-            <button
-              onClick={onLogout}
-              className="px-6 py-3 bg-gray-500 text-white rounded hover:bg-gray-600 text-base font-medium"
-            >
-              로그아웃
-            </button>
+
+            {/* 오른쪽: 환영 메시지와 버튼들 */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <img
+                    src={profileImage}
+                    alt="프로필"
+                    className="w-10 h-10 rounded-full object-cover ring-2 ring-blue-500/20 shadow-md"
+                    onError={(e) => {
+                      e.target.src = 'http://localhost:8000/images/profile.jpg';
+                    }}
+                  />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                </div>
+                <span className="text-gray-700 font-medium">
+                  환영합니다, <span className="font-bold text-gray-900">{user}</span>님
+                </span>
+              </div>
+              <button
+                onClick={onMyPage}
+                className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
+              >
+                마이페이지
+              </button>
+              <button
+                onClick={onLogout}
+                className="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 text-white rounded-lg hover:from-gray-700 hover:to-gray-800 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
+              >
+                로그아웃
+              </button>
+            </div>
           </div>
         </div>
 
@@ -475,73 +565,76 @@ export default function Board({ user, onLogout, onMyPage }) {
                 게시글이 없습니다.
               </div>
             ) : (
-              categories.map((category) => {
-                const categoryPosts = posts.filter(post => post.category === category);
-                if (categoryPosts.length === 0) return null;
+              categories
+                .filter(category => selectedCategory === '전체' || selectedCategory === category)
+                .map((category) => {
+                  const categoryPosts = posts.filter(post => post.category === category);
+                  if (categoryPosts.length === 0) return null;
 
-                return (
-                  <div key={category}>
-                    {/* 카테고리 제목 */}
-                    <div className="mb-6 flex items-center justify-between">
-                      <div className="flex-1">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">{category}</h2>
-                        <div className="w-full h-px bg-gray-300"></div>
+                  return (
+                    <div key={category}>
+                      {/* 카테고리 제목 */}
+                      <div className="mb-8 flex items-center justify-between">
+                        <div className="flex-1">
+                          <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent mb-3">{category}</h2>
+                          <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-400 to-transparent"></div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setFormData({ title: '', content: '', category: category, webgl_path: '' });
+                            setView('form');
+                          }}
+                          className="ml-6 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 whitespace-nowrap"
+                        >
+                          + 글쓰기
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          setFormData({ title: '', content: '', category: category, webgl_path: '' });
-                          setView('form');
-                        }}
-                        className="ml-4 px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 text-base font-medium whitespace-nowrap"
-                      >
-                        글쓰기
-                      </button>
-                    </div>
 
                     {/* 게시글 그리드 */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
                       {categoryPosts.map((post) => (
                         <div
                           key={post.id}
                           onClick={() => handlePostClick(post)}
-                          className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                          className="bg-white/90 backdrop-blur-sm border border-gray-200/50 rounded-2xl overflow-hidden hover:shadow-2xl hover:shadow-blue-500/10 transition-all duration-500 cursor-pointer group transform hover:-translate-y-2 hover:scale-105"
                         >
                           {/* 썸네일 이미지 */}
-                          <div className="aspect-video w-full bg-gray-100 overflow-hidden">
+                          <div className="aspect-video w-full bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden relative">
                             <img
                               src={post.thumbnail || (post.category === 'Three.js 게임' ? '/images/three.png' : '/images/unity.jpg')}
                               alt={post.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                               onError={(e) => {
                                 e.target.src = post.category === 'Three.js 게임' ? '/images/three.png' : '/images/unity.jpg';
                               }}
                             />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                           </div>
 
                           {/* 게시글 정보 */}
-                          <div className="p-4">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                          <div className="p-5">
+                            <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-indigo-600 transition-all duration-300">
                               {post.title}
                             </h3>
-                            <div className="flex items-center justify-between text-sm text-gray-500">
-                              <span>{post.author}</span>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded-lg">{post.author}</span>
                               <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center gap-1 text-blue-600">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                   </svg>
-                                  {post.comment_count || 0}
+                                  <span className="font-semibold">{post.comment_count || 0}</span>
                                 </span>
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center gap-1 text-indigo-600">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                   </svg>
-                                  {post.views}
+                                  <span className="font-semibold">{post.views}</span>
                                 </span>
                               </div>
                             </div>
-                            <div className="text-xs text-gray-400 mt-1">
+                            <div className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100">
                               {post.date}
                             </div>
                           </div>

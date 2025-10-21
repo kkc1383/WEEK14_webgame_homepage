@@ -39,6 +39,10 @@ export default function MyPage({ user, onBack }) {
       if (response.ok) {
         const data = await response.json();
         console.log('User info from API:', data); // 디버깅용
+        // 프로필 이미지 URL 처리: 상대 경로면 백엔드 서버 URL 추가
+        if (data.profile_image && data.profile_image.startsWith('/')) {
+          data.profile_image = `http://localhost:8000${data.profile_image}`;
+        }
         setUserInfo(data);
       } else {
         setError('사용자 정보를 불러오는데 실패했습니다.');
@@ -178,18 +182,19 @@ export default function MyPage({ user, onBack }) {
           </div>
         </div>
 
-        {/* 프로필 이미지 */}
+        {/* 프로필 이미지 - 관리자가 아닐 때만 표시 */}
+        {!userInfo?.is_admin && (
         <div className="bg-white rounded-lg shadow-md p-8 mb-6">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3">
             프로필 이미지
           </h2>
           <div className="flex flex-col items-center">
             <img
-              src={userInfo.profile_image || '/images/profile.jpg'}
+              src={userInfo.profile_image || 'http://localhost:8000/images/profile.jpg'}
               alt="프로필"
               className="w-32 h-32 rounded-full object-cover mb-4 border-4 border-gray-200"
               onError={(e) => {
-                e.target.src = '/images/profile.jpg';
+                e.target.src = 'http://localhost:8000/images/profile.jpg';
               }}
             />
             <form onSubmit={handleProfileImageUpdate} className="w-full max-w-md">
@@ -198,11 +203,11 @@ export default function MyPage({ user, onBack }) {
                   새 프로필 이미지 URL
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   value={profileImageUrl}
                   onChange={(e) => setProfileImageUrl(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="이미지 URL을 입력하세요"
+                  placeholder="예: https://example.com/image.jpg"
                 />
               </div>
 
@@ -228,6 +233,7 @@ export default function MyPage({ user, onBack }) {
             </form>
           </div>
         </div>
+        )}
 
         {/* 사용자 정보 */}
         <div className="bg-white rounded-lg shadow-md p-8 mb-6">
@@ -258,7 +264,8 @@ export default function MyPage({ user, onBack }) {
           </div>
         </div>
 
-        {/* 비밀번호 변경 */}
+        {/* 비밀번호 변경 - 관리자가 아닐 때만 표시 */}
+        {!userInfo?.is_admin && (
         <div ref={passwordSectionRef} className="bg-white rounded-lg shadow-md p-8">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3">
             비밀번호 변경
@@ -327,6 +334,7 @@ export default function MyPage({ user, onBack }) {
             </button>
           </form>
         </div>
+        )}
       </div>
     </div>
   );
