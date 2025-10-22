@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Board from './components/Board';
 import Auth from './components/Auth';
 import MyPage from './components/MyPage';
@@ -7,7 +8,6 @@ const API_URL = 'http://localhost:8000/api';
 
 function App() {
   const [user, setUser] = useState(null);
-  const [currentView, setCurrentView] = useState('board'); // 'board' or 'mypage'
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -92,11 +92,10 @@ function App() {
       console.error('Admin check failed:', error);
     }
 
-    // 임시 비밀번호로 로그인한 경우 마이페이지로 이동
+    // 임시 비밀번호로 로그인한 경우 알림 표시
     const isTempPassword = localStorage.getItem('is_temporary_password');
     if (isTempPassword === 'true') {
       alert('초기 비밀번호를 입력하셨습니다. 비밀번호를 변경해주세요');
-      setCurrentView('mypage');
     }
   };
 
@@ -107,7 +106,6 @@ function App() {
     localStorage.removeItem('is_temporary_password');
     localStorage.removeItem('is_admin');
     setUser(null);
-    setCurrentView('board');
     if (showMessage) {
       alert('로그아웃 되었습니다!');
     }
@@ -125,10 +123,15 @@ function App() {
     return <Auth onLogin={handleLogin} />;
   }
 
-  return currentView === 'mypage' ? (
-    <MyPage user={user} onBack={() => setCurrentView('board')} />
-  ) : (
-    <Board user={user} isAdmin={isAdmin} onLogout={handleLogout} onMyPage={() => setCurrentView('mypage')} />
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Board user={user} isAdmin={isAdmin} onLogout={handleLogout} />} />
+        <Route path="/post/:postId" element={<Board user={user} isAdmin={isAdmin} onLogout={handleLogout} />} />
+        <Route path="/mypage" element={<MyPage user={user} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

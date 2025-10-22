@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = 'http://localhost:8000/api';
 
-export default function MyPage({ user, onBack }) {
+export default function MyPage({ user }) {
+  const navigate = useNavigate();
   const [userInfo, setUserInfo] = useState(null);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -174,7 +176,7 @@ export default function MyPage({ user, onBack }) {
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold text-gray-800">마이페이지</h1>
             <button
-              onClick={onBack}
+              onClick={() => navigate('/')}
               className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
             >
               돌아가기

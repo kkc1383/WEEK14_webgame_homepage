@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 
 const API_URL = 'http://localhost:8000/api';
 
-export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
+export default function Board({ user, isAdmin = false, onLogout }) {
+  const { postId } = useParams();
+  const navigate = useNavigate();
+
   const [posts, setPosts] = useState([]);
   const [view, setView] = useState('list');
   const [selectedPost, setSelectedPost] = useState(null);
@@ -47,6 +51,45 @@ export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
     fetchPosts();
     fetchUserProfile();
   }, []);
+
+  // URL에 postId가 있으면 해당 게시물 로드
+  useEffect(() => {
+    const loadPostFromUrl = async () => {
+      if (postId) {
+        // postId가 있으면 직접 API에서 게시물 정보를 불러오기
+        try {
+          const postResponse = await fetch(`${API_URL}/posts/${postId}`);
+          if (postResponse.ok) {
+            const postData = await postResponse.json();
+            setSelectedPost(postData);
+            setView('detail');
+
+            // 댓글 불러오기
+            try {
+              const commentsResponse = await fetch(`${API_URL}/posts/${postId}/comments`);
+              if (commentsResponse.ok) {
+                const commentsData = await commentsResponse.json();
+                setComments(commentsData);
+              }
+            } catch (error) {
+              console.error('댓글 불러오기 실패:', error);
+            }
+          } else {
+            // 게시물이 없으면 목록으로
+            navigate('/');
+          }
+        } catch (error) {
+          console.error('게시글 조회 실패:', error);
+          navigate('/');
+        }
+      } else {
+        setView('list');
+        setSelectedPost(null);
+      }
+    };
+
+    loadPostFromUrl();
+  }, [postId, navigate]);
 
 
   const fetchUserProfile = async () => {
@@ -95,6 +138,10 @@ export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
       const data = await response.json();
       setSelectedPost(data);
       setView('detail');
+      // URL 업데이트
+      if (!postId || parseInt(postId) !== post.id) {
+        navigate(`/post/${post.id}`);
+      }
       // 조회수 증가 반영
       fetchPosts();
       // 댓글 불러오기
@@ -194,6 +241,7 @@ export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
       if (response.ok) {
         setFormData({ title: '', content: '', category: 'Unity 게임', webgl_path: '' });
         setView('list');
+        navigate('/');
         fetchPosts();
       } else {
         alert('게시글 작성에 실패했습니다.');
@@ -224,6 +272,7 @@ export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
         setView('list');
         setEditMode(false);
         setFormData({ title: '', content: '', category: 'Unity 게임', webgl_path: '' });
+        navigate('/');
         fetchPosts();
       } else {
         alert('게시글 수정에 실패했습니다.');
@@ -247,6 +296,7 @@ export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
 
         if (response.ok) {
           setView('list');
+          navigate('/');
           fetchPosts();
         } else {
           alert('게시글 삭제에 실패했습니다.');
@@ -467,7 +517,10 @@ export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
 
           <div className="border-t border-gray-200 px-8 py-6 flex gap-2">
             <button
-              onClick={() => setView('list')}
+              onClick={() => {
+                setView('list');
+                navigate('/');
+              }}
               className="px-6 py-3 bg-gray-500 text-white rounded hover:bg-gray-600 text-base font-medium"
             >
               목록
@@ -539,7 +592,7 @@ export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
                 </span>
               </div>
               <button
-                onClick={onMyPage}
+                onClick={() => navigate('/mypage')}
                 className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg hover:from-emerald-600 hover:to-teal-700 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-0.5"
               >
                 마이페이지
@@ -579,15 +632,17 @@ export default function Board({ user, isAdmin = false, onLogout, onMyPage }) {
                           <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent mb-3">{category}</h2>
                           <div className="w-full h-px bg-gradient-to-r from-transparent via-blue-400 to-transparent"></div>
                         </div>
-                        <button
-                          onClick={() => {
-                            setFormData({ title: '', content: '', category: category, webgl_path: '' });
-                            setView('form');
-                          }}
-                          className="ml-6 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 whitespace-nowrap"
-                        >
-                          + 글쓰기
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={() => {
+                              setFormData({ title: '', content: '', category: category, webgl_path: '' });
+                              setView('form');
+                            }}
+                            className="ml-6 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 whitespace-nowrap"
+                          >
+                            + 글쓰기
+                          </button>
+                        )}
                       </div>
 
                     {/* 게시글 그리드 */}
